@@ -26,7 +26,6 @@ Notebooks can read injected Codespaces secrets directly from the environment.
 4. Confirm `.env` contains one labeled, blank entry for each expected variable:
    - `ANTHROPIC_API_KEY`
    - `LANGSMITH_API_KEY`
-   - `LANGSMITH_API_KEY_GATEWAY`
 5. Open a notebook in `modules/` and confirm its imports succeed. Model calls are expected to fail until the required keys are configured.
 6. Run `git status --short` and confirm `.env` is not listed.
 
