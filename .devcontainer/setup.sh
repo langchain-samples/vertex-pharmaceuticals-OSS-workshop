@@ -12,11 +12,9 @@ python3 - <<'PY'
 import os
 
 keys = [
-    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
     "LANGSMITH_API_KEY",
     "LANGSMITH_API_KEY_GATEWAY",
-    "WORKSPACE_ID",
-    "TAVILY_API_KEY",
 ]
 try:
     template = open(".env.example").read().splitlines()

@@ -1,11 +1,11 @@
 [project]
 name = "modular-workshops"
 version = "0.1.0"
-description = "Mix-and-match LangChain workshop modules for ~1.5 hour customer workshops"
+description = "LangGraph and Deep Agents workshop modules"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=0.120",
     "deepagents>=0.7",
-    "deepagents-cli",
     "grandalf>=0.8",
     "ipykernel>=7.3.0",
     "ipython>=9.6.0",
@@ -14,29 +14,14 @@ dependencies = [
     "langchain>=1.3.14",
     "langchain-anthropic>=1.4.7",
     "langchain-aws>=1.0.0",
-    "langchain-community>=0.4",
     "langchain-openai>=1.0.1",
     "langgraph>=1.2.10",
     "langgraph-checkpoint-sqlite>=3.1.0",
-    "langgraph-cli[inmem]>=0.4.21",
     "langsmith>=0.10.13",
     "notebook>=7.4.7",
     "python-dotenv>=1.1.1",
-    "requests>=2.32.5",
-    "sqlalchemy>=2.0",
-    "tavily-python>=0.7.25",
     "langchain-core>=1.5.3",
 ]
 
-# Harbor (Module 4, Environment Evals) is a dependency *group*, not a project
-# dependency: `uv sync` installs it, but the LangGraph deploy image builds with
-# `uv pip install -e .`, which reads [project.dependencies] only -- so harbor's
-# tree stays out of an image that never uses it.
-[dependency-groups]
-harbor = ["harbor[langsmith]==0.22.0"]
-
-[tool.uv]
-default-groups = ["harbor"]
-
 [tool.setuptools]
-packages = ["agents", "utils"]
+packages = ["utils"]

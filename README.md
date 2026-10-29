@@ -1,12 +1,17 @@
 # Modular Workshops
 
-This repository contains hands-on tutorials for learning LangChain, LangGraph, and Deep Agents.
+This repository contains hands-on tutorials for learning LangGraph and Deep Agents.
 
 This is a condensed version of LangChain Academy, intended to be run in a session with a LangChain engineer. If you're interested in going into more depth, or working through tutorials on your own, check out [LangChain Academy](https://academy.langchain.com/courses/intro-to-langgraph)! LangChain Academy has helpful pre-recorded videos from our LangChain engineers.
 
+| Module | Notebook | What you build |
+|--------|----------|----------------|
+| 1 | `modules/01_langgraph.ipynb` | A research agent wired by hand with LangGraph: state, nodes, edges, `create_agent()`, middleware, a supervisor, long-term memory, and human-in-the-loop |
+| 2 | `modules/02_deep_agents.ipynb` | The same agent with `create_deep_agent()`: filesystem, planning, subagents, backends, middleware, HITL, AGENTS.md, and skills |
+
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended) or pip
 
 ## Setup
@@ -22,88 +27,62 @@ cp .env.example .env
 
 | Key | Required for | Get one |
 |-----|--------------|---------|
-| `OPENAI_API_KEY` | Modules 1-4 (default model) | <https://platform.openai.com> |
-| `LANGSMITH_API_KEY` | Modules 3 & 4 (recommended for all) | <https://smith.langchain.com> |
-| `LANGSMITH_API_KEY_GATEWAY` / `WORKSPACE_ID` | Module 3 §1 (LangSmith Gateway policies) | same key as `LANGSMITH_API_KEY`; workspace ID from LangSmith Settings → Workspace |
-| `TAVILY_API_KEY` | Modules 1 & 3 (web search tool) | <https://tavily.com> |
+| `ANTHROPIC_API_KEY` | Both modules (default model and the web research tool) | <https://platform.claude.com> |
+| `LANGSMITH_API_KEY` | Recommended (tracing) | <https://smith.langchain.com> |
 
 ```bash
 # 3. Start Jupyter
 uv run jupyter notebook
 ```
 
-Open whichever module(s) your recipe calls for.
+## Web Research Tool
+
+Both modules give the agent a `web_research` tool. It asks Claude to answer the question with **Anthropic's server-side web search tool** (`web_search_20250305`) and returns a short answer followed by the sources it cited. Anthropic runs the searches, so there's no separate search provider or key.
+
+The plumbing lives in `utils/search.py` (`resilient_web_research`). It retries on failure, and if every attempt fails it returns a canned, topic-matched response so a flaky network doesn't stall the workshop. The model that runs the search is `RESEARCH_MODEL` in that file. It's independent of the agent's model, so the tool still needs `ANTHROPIC_API_KEY` if you switch the agent to another provider. Web search isn't available on Amazon Bedrock, so even a Bedrock-backed agent calls the Anthropic API for research.
 
 ## Switching Models
 
-All modules import `model` from `utils/models.py`. Change one line there to swap providers — no notebook edits required.
+Both modules import `model` from `utils/models.py`. Change one block there to swap providers — no notebook edits required.
 
 ```python
 # utils/models.py
 
-# OpenAI (default)
-model = init_chat_model("openai:gpt-5.6-terra", use_responses_api=True)
+# Anthropic (default)
+MODEL_SPEC = {"model": "anthropic:claude-haiku-5-5"}
+API_KEY_ENV = "ANTHROPIC_API_KEY"
 
-# Anthropic
-# model = init_chat_model("anthropic:claude-sonnet-4-5")
-
-# Azure OpenAI
-# from langchain_openai import AzureChatOpenAI
-# model = AzureChatOpenAI(azure_deployment="gpt-5.6-terra", streaming=True)
-
-# AWS Bedrock
-# from langchain_aws import ChatBedrockConverse
-# model = ChatBedrockConverse(provider="anthropic", model_id="...")
+# OpenAI
+# MODEL_SPEC = {"model": "openai:gpt-5.6-luna", "use_responses_api": True}
+# API_KEY_ENV = "OPENAI_API_KEY"
 ```
 
-`utils/models.py` also ships a commented-out **LangSmith Gateway** block. Module 3 §1.4 walks through flipping the default to it so every model call (notebooks *and* the deployed agent) is routed through the gateway and subject to workspace policies.
-
-## Deploy + Govern (Module 3)
-
-Module 3 first creates a workspace-level **LangSmith Gateway** policy (PII / secrets redaction), routes the model through the gateway, then deploys the agent at `agents/deep_agent/` to LangSmith via the `langgraph` CLI (installed by `uv sync`). The deploy config is `langgraph.json` at the workshop root.
-
-Because `agents/deep_agent/agent.py` imports `model` from `utils.models`, whichever block is active in `utils/models.py` at deploy time is what ships — flip on the gateway block and the deployed agent inherits it with no extra flags.
-
-Your `LANGSMITH_API_KEY` must have deployment permissions (use a `lsv2_sk_...` service key). The gateway block reads `LANGSMITH_API_KEY_GATEWAY` (the same key under a non-reserved name, since `langgraph deploy` strips `LANGSMITH_API_KEY` during upload).
-
-## Engine (Module 5)
-
-Module 5 introduces **LangSmith Engine** — it reads your deployed agent's production traces, clusters recurring failures into issues, diagnoses the root cause against your connected source code, and proposes fixes as GitHub PRs. It runs on the Module 3 deployment, driven through an *assistant* (a saved graph configuration) that swaps in a deliberately broken search tool so Engine has a clear, reproducible issue to find.
-
-Engine's first analysis takes ~20 minutes, so it's best primed before a session. Needs the Module 3 deployment and a `LANGSMITH_API_KEY`.
+The default is Claude Haiku 5.5 because it's fast and inexpensive; swap in `claude-sonnet-5-5` or `claude-opus-5-5` for harder tasks. `utils/models.py` also ships commented-out blocks for the LangSmith Gateway, Azure OpenAI, and AWS Bedrock.
 
 ## Project Structure
 
 ```
 modular-workshops/
-├── README.md                       (this file — recipes + setup)
-├── pyproject.toml                  (shared dependencies)
+├── README.md
+├── pyproject.toml
 ├── .env.example
-├── langgraph.json                  (registers agents/deep_agent for langgraph dev)
 ├── utils/
-├── agents/
-│   ├── research_agent.py           (shared agent factory — Module 1 references, Module 4 imports for eval)
-│   └── deep_agent/                 (deployable + governed agent for Module 3)
-│       ├── agent.py
-│       ├── AGENTS.md
-│       └── skills/
-│           ├── linkedin-post/SKILL.md
-│           └── twitter-post/SKILL.md
+│   ├── models.py                   (the chat model every notebook uses)
+│   ├── search.py                   (web research via Anthropic's web search tool)
+│   └── utils.py                    (notebook helpers)
 ├── images/                         (diagrams used by the notebooks)
 └── modules/
-    ├── 01_deep_agents.ipynb        (Module 1)
-    ├── 02_langgraph.ipynb          (Module 2)
-    ├── 03_deploy_and_govern.ipynb  (Module 3)
-    └── 04_langsmith.ipynb          (Module 4)
+    ├── 01_langgraph.ipynb          (Module 1)
+    └── 02_deep_agents.ipynb        (Module 2)
 ```
 
 ## Common Issues
 
-**`langgraph deploy` fails with 403 / permission denied**
-Your API key is a personal token. Generate a service key (`lsv2_sk_...`) in LangSmith settings.
-
-**Notebook can't find `utils` / `agents`**
+**Notebook can't find `utils`**
 Each module's setup cell prepends `project_root` (the workshop root) to `sys.path`. If you moved a notebook, update the `Path().resolve().parent` line to point at the workshop root.
+
+**Tool output starts with `[fallback content; live search unavailable ...]`**
+Every call to the Anthropic API failed. Check that `ANTHROPIC_API_KEY` is set, that your account can use the model named in `RESEARCH_MODEL`, and that web search is enabled for your organization in the Claude Console.
 
 ## For LangChain Internal Users
 Please refer to this linked [Notion document](https://app.notion.com/p/Modular-Workshops-37d808527b1780318063fd210446aa03?source=copy_link) for instructions on setup and usage.
